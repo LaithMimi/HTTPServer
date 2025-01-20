@@ -184,8 +184,14 @@ int handle_client_connection(void *client_socket) {
         if (path[strlen(path) - 1] != '/') { //checks if the path does not end with a slash
             char new_location[MAX_PATH_SIZE];//to hold the new location path
             snprintf(new_location, sizeof(new_location), "%s/", path); //constructs the new location path by appending a slash (/) to the path and stores it in new_location
+			  // Define the response body for the 302 Found case
+            const char *body = "<HTML><HEAD><TITLE>302 Found</TITLE></HEAD>\n"
+                               "<BODY><H4>302 Found</H4>\n"
+                               "Directories must end with a slash.\n"
+                               "</BODY></HTML>\n";
 
-            send_response(sock, "302", "Found", NULL, NULL, 0, new_location, 0);//sends a "302 Found" response to the client with the new location
+            // Send the 302 Found response with the Location header
+            send_response(sock, "302", "Found", "text/html", body, strlen(body), new_location,0);
         }
         else {
             char index_path[MAX_PATH_SIZE + 10];
@@ -289,8 +295,8 @@ void send_directory_listing(int client_socket, const char *dir_path, const char 
         return;
     }
 
-    // Start building the HTML response body
-    char response_body[8192]; // Adjust size as needed
+    //start building the HTML response body
+    char response_body[8192];
     int response_len = snprintf(response_body, sizeof(response_body),
                                 "<HTML>\n"
                                 "<HEAD><TITLE>Index of %s</TITLE></HEAD>\n"
@@ -300,7 +306,7 @@ void send_directory_listing(int client_socket, const char *dir_path, const char 
                                 "<tr><th>Name</th><th>Last Modified</th><th>Size</th></tr>\n",
                                 request_path, request_path);
 
-    // Iterate through directory entries
+    //iterate through directory entries
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL) {
         // Skip "." and ".."
@@ -308,21 +314,21 @@ void send_directory_listing(int client_socket, const char *dir_path, const char 
             continue;
         }
 
-        // Construct the full path of the entry
+        //constructing the full path of the entry
         char full_path[MAX_PATH_SIZE];
         snprintf(full_path, sizeof(full_path), "%s/%s", dir_path, entry->d_name);
 
-        // Get file/directory information
+        //get file/directory information
         struct stat st;
         if (stat(full_path, &st) < 0) {
             continue; // Skip if stat fails
         }
 
-        // Format the last modified time
+        //format the last modified time
         char last_modified_str[128];
         strftime(last_modified_str, sizeof(last_modified_str), "%Y-%m-%d %H:%M:%S", gmtime(&st.st_mtime));
 
-        // Add a row for the entry
+        //add a row for the entry
         response_len += snprintf(response_body + response_len, sizeof(response_body) - response_len,
                                  "<tr>\n"
                                  "<td><A HREF=\"%s/%s\">%s</A></td>\n"
@@ -350,25 +356,32 @@ void send_error_response(int client_socket, int status_code, const char *status_
     const char *body;
     switch (status_code) {
         case 400:
-            body = "<HTML><HEAD><TITLE>400 Bad Request</TITLE></HEAD><BODY><H4>400 Bad Request</H4>Bad request.</BODY></HTML>";
+            body = "<HTML><HEAD><TITLE>400 Bad Request</TITLE></HEAD>\n<BODY><H4>400 Bad Request</H4>\nBad request.\n</BODY></HTML>\n";
         break;
         case 403:
-            body = "<HTML><HEAD><TITLE>403 Forbidden</TITLE></HEAD><BODY><H4>403 Forbidden</H4>Access denied.</BODY></HTML>";
+            body = "<HTML><HEAD><TITLE>403 Forbidden</TITLE></HEAD>\n<BODY><H4>403 Forbidden</H4>\nAccess denied.\n</BODY></HTML>\n";
         break;
         case 404:
-            body = "<HTML><HEAD><TITLE>404 Not Found</TITLE></HEAD><BODY><H4>404 Not Found</H4>File not found.</BODY></HTML>";
+            body = "<HTML><HEAD><TITLE>404 Not Found</TITLE></HEAD>\n<BODY><H4>404 Not Found</H4>\nFile not found.\n</BODY></HTML>\n";
         break;
         case 500:
-            body = "<HTML><HEAD><TITLE>500 Internal Server Error</TITLE></HEAD><BODY><H4>500 Internal Server Error</H4>Some server side error.</BODY></HTML>";
+            body = "<HTML><HEAD><TITLE>500 Internal Server Error</TITLE></HEAD>\n<BODY><H4>500 Internal Server Error</H4>\nSome server side error.\n</BODY></HTML>\n";
         break;
         case 501:
-            body = "<HTML><HEAD><TITLE>501 Not supported</TITLE></HEAD><BODY><H4>501 Not supported</H4>Method is not supported.</BODY></HTML>";
+            body = "<HTML><HEAD><TITLE>501 Not supported</TITLE></HEAD><BODY>\n<H4>501 Not supported</H4>\nMethod is not supported.\n</BODY></HTML>\n";
         break;
         default:
-            body = "<HTML><HEAD><TITLE>500 Internal Server Error</TITLE></HEAD><BODY><H4>500 Internal Server Error</H4>Some server side error.</BODY></HTML>";
+            body = "<HTML><HEAD><TITLE>500 Internal Server Error</TITLE></HEAD><BODY>\n<H4>500 Internal Server Error</H4>\nSome server side error.\n</BODY></HTML>\n";
         break;
     }
-    send_response(client_socket, status_code == 302 ? "302" : "400", status_msg, "text/html", body, strlen(body), NULL, 0);
+    //send the response with the appropriate status code and location header
+    send_response(client_socket,
+                  status_code == 302 ? "302" : "400",
+                  status_msg, "text/html",
+                  body,
+                  strlen(body),
+                  NULL,
+                  0);
 }
 
 
