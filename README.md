@@ -86,7 +86,7 @@ This command starts the server on port 8080 with 4 threads, a queue size of 10, 
 - `403 Forbidden`: Access to the requested file or directory is denied.
 - `404 Not Found`: The requested resource does not exist.
 - `500 Internal Server Error`: Server-side error.
-- `501 Not Implemented`: Method not supported (e.g., non-`GET` requests).
+- `501 Not Supported`: Method not supported (e.g., non-`GET` requests).
 
 ---
 
@@ -96,7 +96,7 @@ This command starts the server on port 8080 with 4 threads, a queue size of 10, 
    - Failure to bind to the specified port.
 2. **Client Errors**:
    - Invalid HTTP requests are rejected with `400 Bad Request`.
-   - Requests for unsupported methods return `501 Not Implemented`.
+   - Requests for unsupported methods return `501 Not Supported`.
 3. **File Errors**:
    - Missing files return `404 Not Found`.
    - Files without proper read permissions return `403 Forbidden`.
