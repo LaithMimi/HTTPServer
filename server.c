@@ -172,7 +172,8 @@ int handle_client_connection(void *client_socket) {
     //check if the path exists
     struct stat st;//to hold information about the file
 
-    if (stat(full_path, &st) < 0) {//to get information about the file at full_path. If stat returns a negative value, the file does not exist.
+    if (stat(full_path, &st) < 0) {
+        //to get information about the file at full_path. If stat returns a negative value, the file does not exist.
         send_error_response(sock, 404, "Not Found");
         close(sock);
         return 1;
@@ -288,21 +289,60 @@ void send_directory_listing(int client_socket, const char *dir_path, const char 
         return;
     }
 
-    char response_body[8192] = "<html><body><h1>Directory Listing</h1><ul>";
-    int response_len = strlen(response_body);
+    // Start building the HTML response body
+    char response_body[8192]; // Adjust size as needed
+    int response_len = snprintf(response_body, sizeof(response_body),
+                                "<HTML>\n"
+                                "<HEAD><TITLE>Index of %s</TITLE></HEAD>\n"
+                                "<BODY>\n"
+                                "<H4>Index of %s</H4>\n"
+                                "<table CELLSPACING=8>\n"
+                                "<tr><th>Name</th><th>Last Modified</th><th>Size</th></tr>\n",
+                                request_path, request_path);
 
+    // Iterate through directory entries
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL) {
+        // Skip "." and ".."
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
         }
+
+        // Construct the full path of the entry
+        char full_path[MAX_PATH_SIZE];
+        snprintf(full_path, sizeof(full_path), "%s/%s", dir_path, entry->d_name);
+
+        // Get file/directory information
+        struct stat st;
+        if (stat(full_path, &st) < 0) {
+            continue; // Skip if stat fails
+        }
+
+        // Format the last modified time
+        char last_modified_str[128];
+        strftime(last_modified_str, sizeof(last_modified_str), "%Y-%m-%d %H:%M:%S", gmtime(&st.st_mtime));
+
+        // Add a row for the entry
         response_len += snprintf(response_body + response_len, sizeof(response_body) - response_len,
-                                 "<li><a href=\"%s/%s\">%s</a></li>", request_path, entry->d_name, entry->d_name);
+                                 "<tr>\n"
+                                 "<td><A HREF=\"%s/%s\">%s</A></td>\n"
+                                 "<td>%s</td>\n"
+                                 "<td>%ld</td>\n"
+                                 "</tr>\n",
+                                 request_path, entry->d_name, entry->d_name,
+                                 last_modified_str,
+                                 S_ISDIR(st.st_mode) ? 0 : st.st_size); // Omit size for directories
     }
     closedir(dir);
 
-    response_len += snprintf(response_body + response_len, sizeof(response_body) - response_len, "</ul></body></html>");
+    // Add the footer to the HTML response
+    response_len += snprintf(response_body + response_len, sizeof(response_body) - response_len,
+                             "</table>\n"
+                             "<HR>\n"
+                             "<ADDRESS>webserver/1.0</ADDRESS>\n"
+                             "</BODY></HTML>\n");
 
+    // Send the response
     send_response(client_socket, "200", "OK", "text/html", response_body, response_len, NULL, 0);
 }
 

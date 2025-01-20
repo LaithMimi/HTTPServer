@@ -55,6 +55,7 @@ else
     echo "Response: $response"
 fi
 echo
+sudo apt-get install valgrind
 
 # Stop the server
 kill $SERVER_PID
